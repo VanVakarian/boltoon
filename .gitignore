@@ -1,2 +1,5 @@
 node_modules
 env.js
+main.db
+*.project_src
+package-lock.json
