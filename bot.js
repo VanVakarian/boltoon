@@ -1,22 +1,24 @@
 import { Telegraf, Markup } from 'telegraf';
 import { message } from 'telegraf/filters';
-import OpenAI from 'openai';
 
 import { initDatabase } from './db/init.js';
 import { getUser, createUser, updateUserModel } from './db/users.js';
 
-import { escapeHTML } from './utils.js';
+import { getChatGPTResponse } from './gpt/chatgpt.js';
+import { getClaudeResponse } from './gpt/claude.js';
 
-import { TG_BOT_TOKEN, OPENAI_TOKEN } from './env.js';
-import { MODEL_PRICES, MODELS, DEFAULT_MODEL } from './const.js';
+import { TG_BOT_TOKEN } from './env.js';
+import { MODELS, MODEL_LIST } from './const.js';
+import { escapeHTML } from './utils.js';
 
 await initDatabase();
 
 const bot = new Telegraf(TG_BOT_TOKEN);
-const openai = new OpenAI({ apiKey: OPENAI_TOKEN });
 
 function getModelKeyboard() {
-  return Markup.inlineKeyboard(MODELS.map((model) => [Markup.button.callback(model, `select_model:${model}`)]));
+  return Markup.inlineKeyboard(
+    MODEL_LIST.map((modelKey) => [Markup.button.callback(MODELS[modelKey].buttonText, `select_model:${modelKey}`)])
+  );
 }
 
 bot.command('start', (ctx) => {
@@ -28,57 +30,47 @@ bot.command('choosemodel', (ctx) => {
 });
 
 bot.action(/^select_model:(.+)$/, async (ctx) => {
-  const model = ctx.match[1];
+  const modelKey = ctx.match[1];
   const tgId = ctx.from.id.toString();
-  const success = await updateUserModel(tgId, model);
+  const success = await updateUserModel(tgId, modelKey);
   if (success) {
-    await ctx.answerCbQuery(`Вы выбрали модель: ${model}`);
-    await ctx.editMessageText(`Текущая модель: ${model}`);
+    await ctx.answerCbQuery(`Вы выбрали модель: ${MODELS[modelKey].shortName}`);
+    await ctx.editMessageText(`Текущая модель: ${MODELS[modelKey].buttonText}`);
   } else {
     await ctx.answerCbQuery('Произошла ошибка при обновлении модели');
   }
 });
 
 bot.on(message('text'), async (ctx) => {
-  // console.log('\nctx:', ctx.update);
   const tgId = ctx.chat.id;
   const userMessage = ctx.message.text;
   const user = await getUser(tgId);
-  // console.log('\nUser:', user);
   const selectedModel = user.selected_model;
 
   if (!user.is_activated) return;
 
-  // if (!user) {
-  //   await createUser(tgId, ctx.chat?.username, ctx.chat?.first_name, ctx.chat?.last_name, DEFAULT_MODEL);
-  //   user = { selected_model: DEFAULT_MODEL };
-  // }
-
   try {
     await ctx.sendChatAction('typing');
-
     const quote = ctx.message.reply_to_message?.text;
     const fullMessage = quote ? `${quote}\n\n${userMessage}` : userMessage;
 
-    const aiResponse = await openai.chat.completions.create({
-      messages: [
-        // { role: 'system', content: 'You are a helpful assistant.' },
-        { role: 'user', content: fullMessage },
-      ],
-      model: selectedModel,
-    });
-    console.log('\nCompletion:', aiResponse);
+    let response;
+    if (selectedModel.startsWith('gpt')) {
+      response = await getChatGPTResponse(selectedModel, fullMessage);
+    } else if (selectedModel.startsWith('claude')) {
+      response = await getClaudeResponse(selectedModel, fullMessage);
+    } else {
+      throw new Error('Unsupported model');
+    }
 
-    const answer = aiResponse.choices[0].message.content;
-    // console.log('OpenAI response:', answer);
+    // console.log('\nCompletion:', response);
 
-    const inputTokens = aiResponse.usage.prompt_tokens;
-    const outputTokens = aiResponse.usage.completion_tokens;
-    const inputCost = (inputTokens * MODEL_PRICES[selectedModel].input) / 1000;
-    const outputCost = (outputTokens * MODEL_PRICES[selectedModel].output) / 1000;
+    const { answer, inputTokens, outputTokens } = response;
+    const inputCost = (inputTokens * MODELS[selectedModel].prices.input) / 1000;
+    const outputCost = (outputTokens * MODELS[selectedModel].prices.output) / 1000;
     const totalCost = inputCost + outputCost;
 
-    console.log(`Стоимость запроса: $${totalCost.toFixed(4)}`);
+    // console.log(`Стоимость запроса: $${totalCost.toFixed(4)}`);
 
     const reply = `${answer}\n\nСтоимость этого запроса: $${totalCost.toFixed(4)}`;
     await ctx.reply(reply);
