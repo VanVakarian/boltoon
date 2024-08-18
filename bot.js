@@ -1,45 +1,29 @@
-import { Telegraf, Markup } from 'telegraf';
+import { Telegraf } from 'telegraf';
 import { message } from 'telegraf/filters';
 
 import { initDatabase } from './db/init.js';
-import { getUser, createUser, updateUserModel, getAdminUsers } from './db/users.js';
-
-import { getChatGPTResponse } from './gpt/chatgpt.js';
-import { getClaudeResponse } from './gpt/claude.js';
+import { getUser, getAdminUsers } from './db/users.js';
 
 import { TG_BOT_TOKEN } from './env.js';
-import { MODELS, MODEL_LIST, DEFAULT_MODEL_KEY } from './const.js';
+import { MODELS, DEFAULT_MODEL_KEY } from './const.js';
 import { escapeHTML } from './utils.js';
+
+import { handleChooseModel, handleSetTimezone, handleModelSelection, handleTimezoneSelection } from './bot/settings.js';
+
+import { generateResponse } from './bot/gpt.js';
 
 await initDatabase();
 
 const bot = new Telegraf(TG_BOT_TOKEN);
 
-function getModelKeyboard() {
-  return Markup.inlineKeyboard(
-    MODEL_LIST.map((modelKey) => [Markup.button.callback(MODELS[modelKey].buttonText, `select_model:${modelKey}`)])
-  );
-}
-
 bot.command('start', (ctx) => {
-  ctx.reply('Добро пожаловать! Используйте /choosemodel для настройки модели.');
+  ctx.reply('Добро пожаловать! Используйте /choosemodel для настройки модели и /settz для установки часового пояса.');
 });
 
-bot.command('choosemodel', (ctx) => {
-  ctx.reply('Выберите модель:', getModelKeyboard());
-});
-
-bot.action(/^select_model:(.+)$/, async (ctx) => {
-  const modelKey = ctx.match[1];
-  const tgId = ctx.from.id.toString();
-  const success = await updateUserModel(tgId, modelKey);
-  if (success) {
-    await ctx.answerCbQuery(`Вы выбрали модель: ${modelKey}`);
-    await ctx.editMessageText(`Текущая модель: ${MODELS[modelKey].buttonText}`);
-  } else {
-    await ctx.answerCbQuery('Произошла ошибка при обновлении модели');
-  }
-});
+bot.command('choosemodel', handleChooseModel);
+bot.command('settz', handleSetTimezone);
+bot.action(/^select_model:(.+)$/, handleModelSelection);
+bot.action(/^set_tz:(-?\d+)$/, handleTimezoneSelection);
 
 bot.on(message('text'), async (ctx) => {
   const tgId = ctx.chat.id;
@@ -53,29 +37,12 @@ bot.on(message('text'), async (ctx) => {
 
   try {
     await ctx.sendChatAction('typing');
-    // throw new Error('Тестовая ошибка');
     const quote = ctx.message.reply_to_message?.text;
     const fullMessage = quote ? `${quote}\n\n${userMessage}` : userMessage;
 
-    let response;
-    if (MODELS[selectedModelKey].modelName.startsWith('gpt')) {
-      response = await getChatGPTResponse(MODELS[selectedModelKey].modelName, fullMessage);
-    } else if (MODELS[selectedModelKey].modelName.startsWith('claude')) {
-      response = await getClaudeResponse(MODELS[selectedModelKey].modelName, fullMessage);
-    } else {
-      throw new Error('Unsupported model');
-    }
+    const { answer, totalCost } = await generateResponse(selectedModelKey, fullMessage);
 
-    // console.log('\nCompletion:', response);
-
-    const { answer, inputTokens, outputTokens } = response;
-    const inputCost = (inputTokens * MODELS[selectedModelKey].prices.input) / 1000000;
-    const outputCost = (outputTokens * MODELS[selectedModelKey].prices.output) / 1000000;
-    const totalCost = inputCost + outputCost;
-
-    // console.log(`Стоимость запроса: $${totalCost.toFixed(4)}`);
-
-    const reply = `${answer}\n\nСтоимость этого запроса: $${totalCost.toFixed(4)}`;
+    const reply = `${answer}\n\nСтоимость этого запроса: $${totalCost}`;
     await ctx.reply(reply);
   } catch (error) {
     console.error('Error:', error);

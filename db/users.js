@@ -14,31 +14,25 @@ export async function getUser(tgId) {
   }
 }
 
-export async function createUser(tgId, tgUsername, tgFirstname, tgLastname, selectedModelKey) {
-  console.log(tgId, tgUsername, tgFirstname, tgLastname, selectedModelKey);
-  const connection = await getConnection();
-  try {
-    const query = `
-      INSERT INTO
-        users (tg_id, tg_username, tg_firstname, tg_lastname, selected_model_key, is_activated, is_admin)
-      VALUES
-        (?, ?, ?, ?, ?, ?, ?)
-      `;
-    const result = await connection.run(query, [tgId, tgUsername, tgFirstname, tgLastname, selectedModelKey, false, false]);
-    return result.lastID;
-  } catch (error) {
-    console.error(error);
-    return null;
-  } finally {
-    await connection.close();
-  }
-}
-
 export async function updateUserModel(tgId, selectedModelKey) {
   const connection = await getConnection();
   try {
     const query = 'UPDATE users SET selected_model_key = ? WHERE tg_id = ?';
     await connection.run(query, [selectedModelKey, tgId]);
+    return true;
+  } catch (error) {
+    console.error(error);
+    return false;
+  } finally {
+    await connection.close();
+  }
+}
+
+export async function updateUserTzOffset(tgId, tzOffset) {
+  const connection = await getConnection();
+  try {
+    const query = 'UPDATE users SET tz_offset = ? WHERE tg_id = ?';
+    await connection.run(query, [tzOffset, tgId]);
     return true;
   } catch (error) {
     console.error(error);
@@ -61,3 +55,32 @@ export async function getAdminUsers() {
     await connection.close();
   }
 }
+
+// export async function createUser(tgId, tgUsername, tgFirstname, tgLastname, selectedModelKey, tzOffset = 0) {
+//   console.log(tgId, tgUsername, tgFirstname, tgLastname, selectedModelKey, tzOffset);
+//   const connection = await getConnection();
+//   try {
+//     const query = `
+//       INSERT INTO
+//         users (tg_id, tg_username, tg_firstname, tg_lastname, selected_model_key, tz_offset, is_activated, is_admin)
+//       VALUES
+//         (?, ?, ?, ?, ?, ?, ?, ?)
+//     `;
+//     const result = await connection.run(query, [
+//       tgId,
+//       tgUsername,
+//       tgFirstname,
+//       tgLastname,
+//       selectedModelKey,
+//       tzOffset,
+//       false,
+//       false,
+//     ]);
+//     return result.lastID;
+//   } catch (error) {
+//     console.error(error);
+//     return null;
+//   } finally {
+//     await connection.close();
+//   }
+// }
