@@ -8,7 +8,7 @@ import { getChatGPTResponse } from './gpt/chatgpt.js';
 import { getClaudeResponse } from './gpt/claude.js';
 
 import { TG_BOT_TOKEN } from './env.js';
-import { MODELS, MODEL_LIST } from './const.js';
+import { MODELS, MODEL_LIST, DEFAULT_MODEL_KEY } from './const.js';
 import { escapeHTML } from './utils.js';
 
 await initDatabase();
@@ -34,7 +34,7 @@ bot.action(/^select_model:(.+)$/, async (ctx) => {
   const tgId = ctx.from.id.toString();
   const success = await updateUserModel(tgId, modelKey);
   if (success) {
-    await ctx.answerCbQuery(`Вы выбрали модель: ${MODELS[modelKey].shortName}`);
+    await ctx.answerCbQuery(`Вы выбрали модель: ${modelKey}`);
     await ctx.editMessageText(`Текущая модель: ${MODELS[modelKey].buttonText}`);
   } else {
     await ctx.answerCbQuery('Произошла ошибка при обновлении модели');
@@ -45,20 +45,23 @@ bot.on(message('text'), async (ctx) => {
   const tgId = ctx.chat.id;
   const userMessage = ctx.message.text;
   const user = await getUser(tgId);
-  const selectedModel = user.selected_model;
+  let selectedModelKey = user?.selected_model_key;
+
+  if (!selectedModelKey || !MODELS[selectedModelKey]) selectedModelKey = DEFAULT_MODEL_KEY;
 
   if (!user.is_activated) return;
 
   try {
     await ctx.sendChatAction('typing');
+    // throw new Error('Тестовая ошибка');
     const quote = ctx.message.reply_to_message?.text;
     const fullMessage = quote ? `${quote}\n\n${userMessage}` : userMessage;
 
     let response;
-    if (selectedModel.startsWith('gpt')) {
-      response = await getChatGPTResponse(selectedModel, fullMessage);
-    } else if (selectedModel.startsWith('claude')) {
-      response = await getClaudeResponse(selectedModel, fullMessage);
+    if (MODELS[selectedModelKey].modelName.startsWith('gpt')) {
+      response = await getChatGPTResponse(MODELS[selectedModelKey].modelName, fullMessage);
+    } else if (MODELS[selectedModelKey].modelName.startsWith('claude')) {
+      response = await getClaudeResponse(MODELS[selectedModelKey].modelName, fullMessage);
     } else {
       throw new Error('Unsupported model');
     }
@@ -66,8 +69,8 @@ bot.on(message('text'), async (ctx) => {
     // console.log('\nCompletion:', response);
 
     const { answer, inputTokens, outputTokens } = response;
-    const inputCost = (inputTokens * MODELS[selectedModel].prices.input) / 1000;
-    const outputCost = (outputTokens * MODELS[selectedModel].prices.output) / 1000;
+    const inputCost = (inputTokens * MODELS[selectedModelKey].prices.input) / 1000000;
+    const outputCost = (outputTokens * MODELS[selectedModelKey].prices.output) / 1000000;
     const totalCost = inputCost + outputCost;
 
     // console.log(`Стоимость запроса: $${totalCost.toFixed(4)}`);
@@ -76,7 +79,7 @@ bot.on(message('text'), async (ctx) => {
     await ctx.reply(reply);
   } catch (error) {
     console.error('Error:', error);
-    await ctx.reply(`Произошла ошибка: ${error}, отчёт уже отправлен Владу.`);
+    await ctx.reply(`Произошла ошибка:\n${error}.\nОтчёт уже отправлен Владу.`);
     await sendErrorToAdmin(error);
   }
 });

@@ -1,24 +1,26 @@
 export const MODELS = {
-  'gpt-4o-2024-08-06': {
-    shortName: 'ChatGPT-4o',
+  'ChatGPT-4o': {
+    modelName: 'gpt-4o-2024-08-06',
     buttonText: '💡 ChatGPT-4o: мощная и дорогая',
-    prices: { input: 0.005, output: 0.015 },
+    prices: { input: 2.5, output: 10 },
   },
-  'gpt-4o-mini-2024-07-18': {
-    shortName: 'ChatGPT-4o-mini',
+  'ChatGPT-4o-mini': {
+    modelName: 'gpt-4o-mini-2024-07-18',
     buttonText: '⚡️ ChatGPT-4o-mini: простая и быстрая',
-    prices: { input: 0.00015, output: 0.0006 },
+    prices: { input: 0.15, output: 0.6 },
   },
-  'claude-3-5-sonnet-20240620': {
-    shortName: 'Claude-3-5-sonnet',
+  'Claude-3-5-sonnet': {
+    modelName: 'claude-3-5-sonnet-20240620',
     buttonText: '🧠 Claude-3-5-sonnet: мощная и дорогая',
-    prices: { input: 0.003, output: 0.015 },
+    prices: { input: 3, output: 15 },
   },
-  'claude-3-haiku-20240307': {
-    shortName: 'Claude-3-haiku',
+  'Claude-3-haiku': {
+    modelName: 'claude-3-haiku-20240307',
     buttonText: '🚀 Claude-3-haiku: простая и быстрая',
-    prices: { input: 0.00025, output: 0.00125 },
+    prices: { input: 0.25, output: 1.25 },
   },
 };
+
+export const DEFAULT_MODEL_KEY = 'ChatGPT-4o-mini';
 
 export const MODEL_LIST = Object.keys(MODELS);

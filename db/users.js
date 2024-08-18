@@ -14,17 +14,17 @@ export async function getUser(tgId) {
   }
 }
 
-export async function createUser(tgId, tgUsername, tgFirstname, tgLastname, selectedModel) {
-  console.log(tgId, tgUsername, tgFirstname, tgLastname, selectedModel);
+export async function createUser(tgId, tgUsername, tgFirstname, tgLastname, selectedModelKey) {
+  console.log(tgId, tgUsername, tgFirstname, tgLastname, selectedModelKey);
   const connection = await getConnection();
   try {
     const query = `
       INSERT INTO
-        users (tg_id, tg_username, tg_firstname, tg_lastname, selected_model, is_activated, is_admin)
+        users (tg_id, tg_username, tg_firstname, tg_lastname, selected_model_key, is_activated, is_admin)
       VALUES
         (?, ?, ?, ?, ?, ?, ?)
       `;
-    const result = await connection.run(query, [tgId, tgUsername, tgFirstname, tgLastname, selectedModel, false, false]);
+    const result = await connection.run(query, [tgId, tgUsername, tgFirstname, tgLastname, selectedModelKey, false, false]);
     return result.lastID;
   } catch (error) {
     console.error(error);
@@ -34,11 +34,11 @@ export async function createUser(tgId, tgUsername, tgFirstname, tgLastname, sele
   }
 }
 
-export async function updateUserModel(tgId, selectedModel) {
+export async function updateUserModel(tgId, selectedModelKey) {
   const connection = await getConnection();
   try {
-    const query = 'UPDATE users SET selected_model = ? WHERE tg_id = ?';
-    await connection.run(query, [selectedModel, tgId]);
+    const query = 'UPDATE users SET selected_model_key = ? WHERE tg_id = ?';
+    await connection.run(query, [selectedModelKey, tgId]);
     return true;
   } catch (error) {
     console.error(error);

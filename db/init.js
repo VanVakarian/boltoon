@@ -31,7 +31,7 @@ async function insertInitialUsers(connection) {
   try {
     const insertQuery = `
       INSERT OR IGNORE INTO users (
-        tg_id, tg_username, tg_firstname, tg_lastname, selected_model, is_activated, is_admin
+        tg_id, tg_username, tg_firstname, tg_lastname, selected_model_key, is_activated, is_admin
       ) VALUES (?, ?, ?, ?, ?, ?, ?)
     `;
 
@@ -41,7 +41,7 @@ async function insertInitialUsers(connection) {
         user.tgUsername ?? null,
         user.tgFirstname ?? null,
         user.tgLastname ?? null,
-        user.selectedModel,
+        user.selectedModelKey,
         user.isActivated ? 1 : 0,
         user.isAdmin ? 1 : 0,
       ]);
@@ -70,7 +70,7 @@ export async function initDatabase() {
           tg_username TEXT,
           tg_firstname TEXT,
           tg_lastname TEXT,
-          selected_model TEXT,
+          selected_model_key TEXT,
           is_activated BOOLEAN,
           is_admin BOOLEAN
         );
