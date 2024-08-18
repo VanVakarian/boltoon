@@ -9,6 +9,8 @@ export async function getUser(tgId) {
   } catch (error) {
     console.error(error);
     return null;
+  } finally {
+    await connection.close();
   }
 }
 
@@ -27,6 +29,8 @@ export async function createUser(tgId, tgUsername, tgFirstname, tgLastname, sele
   } catch (error) {
     console.error(error);
     return null;
+  } finally {
+    await connection.close();
   }
 }
 
@@ -39,6 +43,8 @@ export async function updateUserModel(tgId, selectedModel) {
   } catch (error) {
     console.error(error);
     return false;
+  } finally {
+    await connection.close();
   }
 }
 
@@ -51,5 +57,7 @@ export async function getAdminUsers() {
   } catch (error) {
     console.error(error);
     return [];
+  } finally {
+    await connection.close();
   }
 }
