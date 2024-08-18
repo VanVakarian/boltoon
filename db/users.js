@@ -41,3 +41,15 @@ export async function updateUserModel(tgId, selectedModel) {
     return false;
   }
 }
+
+export async function getAdminUsers() {
+  const connection = await getConnection();
+  try {
+    const query = 'SELECT * FROM users WHERE is_admin = 1';
+    const result = await connection.all(query);
+    return result;
+  } catch (error) {
+    console.error(error);
+    return [];
+  }
+}

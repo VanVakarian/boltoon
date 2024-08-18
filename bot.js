@@ -2,7 +2,7 @@ import { Telegraf, Markup } from 'telegraf';
 import { message } from 'telegraf/filters';
 
 import { initDatabase } from './db/init.js';
-import { getUser, createUser, updateUserModel } from './db/users.js';
+import { getUser, createUser, updateUserModel, getAdminUsers } from './db/users.js';
 
 import { getChatGPTResponse } from './gpt/chatgpt.js';
 import { getClaudeResponse } from './gpt/claude.js';
@@ -76,15 +76,23 @@ bot.on(message('text'), async (ctx) => {
     await ctx.reply(reply);
   } catch (error) {
     console.error('Error:', error);
-    await ctx.replyWithHTML(
-      [
-        '❗️Ошибка 404: Программы, написанной без багов не найдено!   (´•︵•`)',
-        'Пожалуйста, перешлите рукожопому программисту это сообщение с причиной ошибки:',
-        `\n<pre><code>${escapeHTML(String(error.stack))}</code></pre>`,
-      ].join('\n')
-    );
+    await ctx.reply(`Произошла ошибка: ${error}, отчёт уже отправлен Владу.`);
+    await sendErrorToAdmin(error);
   }
 });
+
+async function sendErrorToAdmin(error) {
+  const adminUsers = await getAdminUsers();
+  const errorMessage = `❗️Ошибка в боте:\n\n<pre><code>${escapeHTML(String(error.stack))}</code></pre>`;
+
+  for (const admin of adminUsers) {
+    try {
+      await bot.telegram.sendMessage(admin.tg_id, errorMessage, { parse_mode: 'HTML' });
+    } catch (sendError) {
+      console.error(`Не удалось отправить сообщение об ошибке админу ${admin.tg_id}:`, sendError);
+    }
+  }
+}
 
 bot.launch();
 
