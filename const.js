@@ -22,5 +22,3 @@ export const MODELS = {
 };
 
 export const DEFAULT_MODEL_KEY = 'ChatGPT-4o-mini';
-
-export const MODEL_LIST = Object.keys(MODELS);

@@ -7,7 +7,7 @@ async function createTables(connection, tables) {
 
   for (const table of tables) {
     try {
-      const existingTable = await connection.get('SELECT name FROM sqlite_master WHERE type="table" AND name=?', table.name);
+      const existingTable = await connection.get('SELECT name FROM sqlite_master WHERE type="table" AND name=?;', table.name);
 
       if (!existingTable) {
         await connection.exec(table.query);
@@ -32,7 +32,7 @@ async function insertInitialUsers(connection) {
     const insertQuery = `
       INSERT OR IGNORE INTO users (
         tg_id, tg_username, tg_firstname, tg_lastname, selected_model_key, tz_offset, is_activated, is_admin
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
     `;
 
     for (const user of INIT_USERS) {
@@ -58,7 +58,7 @@ async function insertInitialUsers(connection) {
   return usersInserted;
 }
 
-export async function initDatabase() {
+export async function dbInit() {
   const connection = await getConnection();
 
   const tables = [

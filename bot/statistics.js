@@ -1,15 +1,8 @@
 import { Markup } from 'telegraf';
-import { getUser } from '../db/users.js';
-
-export function getStatisticsKeyboard() {
-  return Markup.inlineKeyboard([
-    [Markup.button.callback('Last 24 Hours (Hourly)', 'stats:last24hours')],
-    [Markup.button.callback('Last 30 Days (Daily)', 'stats:last30days')],
-  ]);
-}
+import { dbGetUser } from '../db/users.js';
 
 export async function handleStatistics(ctx) {
-  const user = await getUser(ctx.from.id);
+  const user = await dbGetUser(ctx.from.id);
 
   if (!user || !user.is_activated) {
     return ctx.reply('You are not authorized to view statistics.');
@@ -18,13 +11,18 @@ export async function handleStatistics(ctx) {
   await ctx.reply('Choose a time range for statistics:', getStatisticsKeyboard());
 }
 
+function getStatisticsKeyboard() {
+  return Markup.inlineKeyboard([
+    [Markup.button.callback('Last 24 Hours (Hourly)', 'stats:last24hours')],
+    [Markup.button.callback('Last 30 Days (Daily)', 'stats:last30days')],
+  ]);
+}
+
 export async function handleStatisticsSelection(ctx) {
   const choice = ctx.match[1];
-  const user = await getUser(ctx.from.id);
+  const user = await dbGetUser(ctx.from.id);
 
-  if (!user || !user.is_activated) {
-    return ctx.answerCbQuery('You are not authorized to view statistics.');
-  }
+  if (!user || !user.is_activated) return;
 
   let message;
   if (choice === 'last24hours') {

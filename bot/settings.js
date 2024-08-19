@@ -1,20 +1,6 @@
 import { Markup } from 'telegraf';
-import { updateUserModel, updateUserTzOffset } from '../db/users.js';
-import { MODELS, MODEL_LIST } from '../const.js';
-
-export function getModelKeyboard() {
-  return Markup.inlineKeyboard(
-    MODEL_LIST.map((modelKey) => [Markup.button.callback(MODELS[modelKey].buttonText, `select_model:${modelKey}`)])
-  );
-}
-
-export function getTimezoneKeyboard() {
-  const buttons = [];
-  for (let i = -12; i <= 12; i++) {
-    buttons.push(Markup.button.callback(`UTC${i >= 0 ? '+' : ''}${i}`, `set_tz:${i}`));
-  }
-  return Markup.inlineKeyboard(buttons, { columns: 5 });
-}
+import { dbUpdateUserModel, dbUpdateUserTzOffset } from '../db/users.js';
+import { MODELS } from '../const.js';
 
 export async function handleStart(ctx) {
   const message = [
@@ -28,17 +14,26 @@ export async function handleStart(ctx) {
 }
 
 export async function handleChooseModel(ctx) {
-  await ctx.reply('Выберите модель:', getModelKeyboard());
+  const modelList = Object.keys(MODELS);
+  const keyboard = Markup.inlineKeyboard(
+    modelList.map((modelKey) => [Markup.button.callback(MODELS[modelKey].buttonText, `select_model:${modelKey}`)])
+  );
+  await ctx.reply('Выберите модель:', keyboard);
 }
 
 export async function handleSetTimezone(ctx) {
-  await ctx.reply('Выберите ваш часовой пояс:', getTimezoneKeyboard());
+  const buttons = [];
+  for (let i = -12; i <= 12; i++) {
+    buttons.push(Markup.button.callback(`UTC${i >= 0 ? '+' : ''}${i}`, `set_tz:${i}`));
+  }
+  const keyboard = Markup.inlineKeyboard(buttons, { columns: 5 });
+  await ctx.reply('Выберите ваш часовой пояс:', keyboard);
 }
 
 export async function handleModelSelection(ctx) {
   const modelKey = ctx.match[1];
   const tgId = ctx.from.id.toString();
-  const success = await updateUserModel(tgId, modelKey);
+  const success = await dbUpdateUserModel(tgId, modelKey);
   if (success) {
     await ctx.answerCbQuery(`Вы выбрали модель: ${modelKey}`);
     await ctx.editMessageText(`Текущая модель: ${MODELS[modelKey].buttonText}`);
@@ -50,7 +45,7 @@ export async function handleModelSelection(ctx) {
 export async function handleTimezoneSelection(ctx) {
   const tzOffset = parseInt(ctx.match[1]);
   const tgId = ctx.from.id.toString();
-  const success = await updateUserTzOffset(tgId, tzOffset);
+  const success = await dbUpdateUserTzOffset(tgId, tzOffset);
   if (success) {
     await ctx.answerCbQuery(`Вы выбрали часовой пояс: UTC${tzOffset >= 0 ? '+' : ''}${tzOffset}`);
     await ctx.editMessageText(`Текущий часовой пояс: UTC${tzOffset >= 0 ? '+' : ''}${tzOffset}`);
