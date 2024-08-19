@@ -1,32 +1,46 @@
 import { Telegraf } from 'telegraf';
 import { message } from 'telegraf/filters';
 
-import { initDatabase } from './db/init.js';
-import { getUser, getAdminUsers } from './db/users.js';
-
 import { TG_BOT_TOKEN } from './env.js';
 import { MODELS, DEFAULT_MODEL_KEY } from './const.js';
 import { escapeHTML } from './utils.js';
 
-import { handleChooseModel, handleSetTimezone, handleModelSelection, handleTimezoneSelection } from './bot/settings.js';
+import { initDatabase } from './db/init.js';
+import { getUser, getAdminUsers } from './db/users.js';
+import { addRequestCostHistory } from './db/token_history.js';
 
 import { generateResponse } from './bot/gpt.js';
+import {
+  handleStart,
+  handleChooseModel,
+  handleSetTimezone,
+  handleModelSelection,
+  handleTimezoneSelection,
+} from './bot/settings.js';
+import { handleStatistics, handleStatisticsSelection } from './bot/statistics.js';
 
 await initDatabase();
 
 const bot = new Telegraf(TG_BOT_TOKEN);
 
-bot.command('start', (ctx) => {
-  ctx.reply('Добро пожаловать! Используйте /choosemodel для настройки модели и /settz для установки часового пояса.');
-});
+bot.telegram.setMyCommands([
+  { command: 'start', description: 'Инструкция' },
+  { command: 'choosemodel', description: 'Choose a model' },
+  { command: 'settz', description: 'Set timezone' },
+  { command: 'statistics', description: 'View statistics' },
+]);
 
+bot.command('start', handleStart);
 bot.command('choosemodel', handleChooseModel);
 bot.command('settz', handleSetTimezone);
+bot.command('statistics', handleStatistics);
+
 bot.action(/^select_model:(.+)$/, handleModelSelection);
 bot.action(/^set_tz:(-?\d+)$/, handleTimezoneSelection);
+bot.action(/^stats:(.+)$/, handleStatisticsSelection);
 
 bot.on(message('text'), async (ctx) => {
-  const tgId = ctx.chat.id;
+  const tgId = ctx.message.from.id;
   const userMessage = ctx.message.text;
   const user = await getUser(tgId);
   let selectedModelKey = user?.selected_model_key;
@@ -42,7 +56,11 @@ bot.on(message('text'), async (ctx) => {
 
     const { answer, totalCost } = await generateResponse(selectedModelKey, fullMessage);
 
-    const reply = `${answer}\n\nСтоимость этого запроса: $${totalCost}`;
+    const reqTs = ctx.message.date;
+    await addRequestCostHistory(user.id, reqTs, totalCost);
+
+    const displayCost = totalCost.toFixed(4);
+    const reply = `${answer}\n\nСтоимость этого запроса: $${displayCost}`;
     await ctx.reply(reply);
   } catch (error) {
     console.error('Error:', error);

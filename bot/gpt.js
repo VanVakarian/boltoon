@@ -13,12 +13,10 @@ export async function generateResponse(modelKey, fullMessage) {
   }
 
   const { answer, inputTokens, outputTokens } = response;
-  const inputCost = (inputTokens * MODELS[modelKey].prices.input) / 1000000;
-  const outputCost = (outputTokens * MODELS[modelKey].prices.output) / 1000000;
-  const totalCost = inputCost + outputCost;
+  const totalCost = (inputTokens * MODELS[modelKey].prices.input + outputTokens * MODELS[modelKey].prices.output) / 1000000;
 
   return {
     answer,
-    totalCost: totalCost.toFixed(4),
+    totalCost,
   };
 }

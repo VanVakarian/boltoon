@@ -78,6 +78,17 @@ export async function initDatabase() {
         );
       `,
     },
+    {
+      name: 'token_history',
+      query: `
+        CREATE TABLE IF NOT EXISTS token_history (
+          id INTEGER PRIMARY KEY,
+          req_ts INTEGER,
+          req_cost REAL,
+          user_id INTEGER
+        );
+      `,
+    },
   ];
 
   try {

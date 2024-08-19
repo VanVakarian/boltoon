@@ -16,12 +16,23 @@ export function getTimezoneKeyboard() {
   return Markup.inlineKeyboard(buttons, { columns: 5 });
 }
 
+export async function handleStart(ctx) {
+  const message = [
+    'Привет! Это бот для работы с GPT. Используйте команды из главного меню:',
+    '\n/choosemodel - для выбора модели.',
+    '/settz - для установки часового пояса.',
+    '/statistics - для просмотра статистики.',
+    '\nВсе остальные сообщения отправляются в выбранную нейронку для получения ответа.',
+  ];
+  await ctx.reply(message.join('\n'));
+}
+
 export async function handleChooseModel(ctx) {
-  ctx.reply('Выберите модель:', getModelKeyboard());
+  await ctx.reply('Выберите модель:', getModelKeyboard());
 }
 
 export async function handleSetTimezone(ctx) {
-  ctx.reply('Выберите ваш часовой пояс:', getTimezoneKeyboard());
+  await ctx.reply('Выберите ваш часовой пояс:', getTimezoneKeyboard());
 }
 
 export async function handleModelSelection(ctx) {
