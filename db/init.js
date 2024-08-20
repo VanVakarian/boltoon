@@ -1,7 +1,7 @@
 import { getConnection } from './db.js';
 import { INIT_USERS } from '../env.js';
 
-async function createTables(connection, tables) {
+async function dbCreateTables(connection, tables) {
   let tablesCreated = 0;
   let tablesExisted = 0;
 
@@ -25,7 +25,7 @@ async function createTables(connection, tables) {
   return { tablesCreated, tablesExisted };
 }
 
-async function insertInitialUsers(connection) {
+async function dbInsertInitialUsers(connection) {
   let usersInserted = 0;
 
   try {
@@ -89,11 +89,32 @@ export async function dbInit() {
         );
       `,
     },
+    {
+      name: 'currency_rates',
+      query: `
+        CREATE TABLE IF NOT EXISTS currency_rates (
+          id INTEGER PRIMARY KEY,
+          date_iso TEXT,
+          rate REAL,
+          UNIQUE(date_iso)
+        );
+      `,
+    },
+    {
+      name: 'currency_requests_timeout',
+      query: `
+        CREATE TABLE IF NOT EXISTS currency_requests_timeout (
+          id INTEGER PRIMARY KEY,
+          api_id INTEGER UNIQUE,
+          last_request_time INTEGER
+        );
+      `,
+    },
   ];
 
   try {
-    const { tablesCreated, tablesExisted } = await createTables(connection, tables);
-    const usersInserted = await insertInitialUsers(connection);
+    const { tablesCreated, tablesExisted } = await dbCreateTables(connection, tables);
+    const usersInserted = await dbInsertInitialUsers(connection);
 
     const messages = [
       'Инициализация базы данных завершена.',

@@ -1,38 +1,55 @@
-import { Markup } from 'telegraf';
 import { dbGetUser } from '../db/users.js';
+import { dbGetUserStatistics } from '../db/token_history.js';
+import { getCurrentRate } from './currency.js';
 
 export async function handleStatistics(ctx) {
   const user = await dbGetUser(ctx.from.id);
 
   if (!user || !user.is_activated) {
-    return ctx.reply('You are not authorized to view statistics.');
+    return ctx.reply('Вы не авторизованы для просмотра статистики.');
   }
 
-  await ctx.reply('Choose a time range for statistics:', getStatisticsKeyboard());
+  const statistics = await dbGetUserStatistics(user.id);
+
+  if (!statistics) {
+    return ctx.reply('Не удалось получить статистику. Пожалуйста, попробуйте позже.');
+  }
+
+  const currentRate = await getCurrentRate();
+  const message = formatStatisticsMessage(statistics, currentRate);
+  await ctx.reply(message, { parse_mode: 'HTML' });
 }
 
-function getStatisticsKeyboard() {
-  return Markup.inlineKeyboard([
-    [Markup.button.callback('Last 24 Hours (Hourly)', 'stats:last24hours')],
-    [Markup.button.callback('Last 30 Days (Daily)', 'stats:last30days')],
-  ]);
-}
+function formatStatisticsMessage(statistics, rate) {
+  const { totalRequests, totalCost, averageCost } = statistics;
 
-export async function handleStatisticsSelection(ctx) {
-  const choice = ctx.match[1];
-  const user = await dbGetUser(ctx.from.id);
+  const safeTotal = totalRequests ?? 0;
+  const safeTotalCost = totalCost ?? 0;
+  const safeAverageCost = averageCost ?? 0;
 
-  if (!user || !user.is_activated) return;
+  let message = `
+    <b>Ваша статистика:</b>
 
-  let message;
-  if (choice === 'last24hours') {
-    message = 'Statistics for the last 24 hours will be available here soon.';
-  } else if (choice === 'last30days') {
-    message = 'Statistics for the last 30 days will be available here soon.';
+    Всего запросов: ${safeTotal}
+    Общая стоимость: $${safeTotalCost.toFixed(4)}
+    Средняя стоимость запроса: $${safeAverageCost.toFixed(4)}
+  `;
+
+  if (rate !== null) {
+    const totalCostRub = safeTotalCost * rate;
+    const averageCostRub = safeAverageCost * rate;
+    message += `
+    Общая стоимость (RUB): ${totalCostRub.toFixed(2)} ₽
+    Средняя стоимость запроса (RUB): ${averageCostRub.toFixed(2)} ₽
+    Текущий курс: 1 USD = ${rate.toFixed(2)} ₽
+    `;
   } else {
-    return ctx.answerCbQuery('Invalid selection.');
+    message += `
+    
+    Не удалось получить текущий курс валюты. 
+    Стоимость в рублях недоступна.
+    `;
   }
 
-  await ctx.answerCbQuery();
-  await ctx.editMessageText(message);
+  return message.trim();
 }

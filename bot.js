@@ -10,7 +10,7 @@ import {
   handleModelSelection,
   handleTimezoneSelection,
 } from './bot/settings.js';
-import { handleStatistics, handleStatisticsSelection } from './bot/statistics.js';
+import { handleStatistics } from './bot/statistics.js';
 
 await dbInit();
 
@@ -18,9 +18,9 @@ const bot = new Telegraf(TG_BOT_TOKEN);
 
 bot.telegram.setMyCommands([
   { command: 'start', description: 'Инструкция' },
-  { command: 'choosemodel', description: 'Choose a model' },
-  { command: 'settz', description: 'Set timezone' },
-  { command: 'statistics', description: 'View statistics' },
+  { command: 'choosemodel', description: 'Выбрать модель' },
+  { command: 'settz', description: 'Установить часовой пояс' },
+  { command: 'statistics', description: 'Просмотреть статистику' },
 ]);
 
 bot.command('start', handleStart);
@@ -30,7 +30,6 @@ bot.command('statistics', handleStatistics);
 
 bot.action(/^select_model:(.+)$/, handleModelSelection);
 bot.action(/^set_tz:(-?\d+)$/, handleTimezoneSelection);
-bot.action(/^stats:(.+)$/, handleStatisticsSelection);
 
 bot.on(message('text'), handleTextMessage);
 
