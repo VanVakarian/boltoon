@@ -4,52 +4,53 @@ import { getCurrentRate } from './currency.js';
 
 export async function handleStatistics(ctx) {
   const user = await dbGetUser(ctx.from.id);
-
   if (!user || !user.is_activated) {
     return ctx.reply('Вы не авторизованы для просмотра статистики.');
   }
-
-  const statistics = await dbGetUserStatistics(user.id);
-
-  if (!statistics) {
+  const endDate = new Date();
+  const startDate = new Date(endDate);
+  startDate.setDate(startDate.getDate() - 6); // 7 дней назад
+  const statistics = await dbGetUserStatistics(user.id, startDate, endDate);
+  if (!statistics || statistics.length === 0) {
     return ctx.reply('Не удалось получить статистику. Пожалуйста, попробуйте позже.');
   }
-
   const currentRate = await getCurrentRate();
-  const message = formatStatisticsMessage(statistics, currentRate);
+  const processedStats = processStatistics(statistics, startDate, endDate, user.tz_offset);
+  const message = formatStatisticsMessage(processedStats, currentRate, user.tz_offset);
   await ctx.reply(message, { parse_mode: 'HTML' });
 }
 
-function formatStatisticsMessage(statistics, rate) {
-  const { totalRequests, totalCost, averageCost } = statistics;
-
-  const safeTotal = totalRequests ?? 0;
-  const safeTotalCost = totalCost ?? 0;
-  const safeAverageCost = averageCost ?? 0;
-
-  let message = `
-    <b>Ваша статистика:</b>
-
-    Всего запросов: ${safeTotal}
-    Общая стоимость: $${safeTotalCost.toFixed(4)}
-    Средняя стоимость запроса: $${safeAverageCost.toFixed(4)}
-  `;
-
-  if (rate !== null) {
-    const totalCostRub = safeTotalCost * rate;
-    const averageCostRub = safeAverageCost * rate;
-    message += `
-    Общая стоимость (RUB): ${totalCostRub.toFixed(2)} ₽
-    Средняя стоимость запроса (RUB): ${averageCostRub.toFixed(2)} ₽
-    Текущий курс: 1 USD = ${rate.toFixed(2)} ₽
-    `;
-  } else {
-    message += `
-    
-    Не удалось получить текущий курс валюты. 
-    Стоимость в рублях недоступна.
-    `;
+function processStatistics(statistics, startDate, endDate, tzOffset) {
+  const processedStats = [];
+  const currentDate = new Date(startDate);
+  while (currentDate <= endDate) {
+    const dayStats = statistics.filter((stat) => {
+      const statDate = new Date(stat.req_ts * 1000);
+      statDate.setHours(statDate.getHours() + tzOffset);
+      return statDate.toDateString() === currentDate.toDateString();
+    });
+    processedStats.push({
+      date: new Date(currentDate),
+      totalRequests: dayStats.length,
+      totalCost: dayStats.reduce((sum, stat) => sum + stat.req_cost, 0),
+    });
+    currentDate.setDate(currentDate.getDate() + 1);
   }
+  return processedStats;
+}
 
-  return message.trim();
+function formatStatisticsMessage(statistics, rate, tzOffset) {
+  let message = '<b>Ваша статистика за последние 7 дней:</b>\n\n';
+  const daysOfWeek = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+  const months = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+  statistics.forEach((day) => {
+    const date = new Date(day.date);
+    date.setHours(date.getHours() + tzOffset);
+    const dayOfWeek = daysOfWeek[date.getDay()];
+    const dayOfMonth = date.getDate();
+    const month = months[date.getMonth()];
+    const costRUB = (day.totalCost * rate).toFixed(2);
+    message += `${dayOfWeek}, ${dayOfMonth} ${month}, запросов: ${day.totalRequests}, стоимость: ${costRUB} ₽\n`;
+  });
+  return message;
 }

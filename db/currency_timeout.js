@@ -4,7 +4,11 @@ import { EXCHANGE_API_ID } from '../const.js';
 export async function dbGetLastRequestTime() {
   const connection = await getConnection();
   try {
-    const query = 'SELECT last_request_time FROM currency_requests_timeout WHERE api_id = ?;';
+    const query = `
+      SELECT last_request_time
+      FROM currency_requests_timeout
+      WHERE api_id = ?;
+    `;
     const result = await connection.get(query, [EXCHANGE_API_ID]);
     return result ? result.last_request_time : null;
   } catch (error) {

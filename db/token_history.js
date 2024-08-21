@@ -4,10 +4,8 @@ export async function dbStoreCost(userId, requestTs, reqCost) {
   const connection = await getConnection();
   try {
     const query = `
-      INSERT INTO
-        token_history (user_id, req_ts, req_cost)
-      VALUES
-        (?, ?, ?);
+      INSERT INTO token_history (user_id, req_ts, req_cost)
+      VALUES (?, ?, ?);
     `;
     await connection.run(query, [userId, requestTs, reqCost]);
     return true;
@@ -19,30 +17,22 @@ export async function dbStoreCost(userId, requestTs, reqCost) {
   }
 }
 
-export async function dbGetUserStatistics(userId) {
+export async function dbGetUserStatistics(userId, startDate, endDate) {
   const connection = await getConnection();
   try {
     const query = `
-      SELECT 
-        COUNT(*) as totalRequests,
-        COALESCE(SUM(req_cost), 0) as totalCost,
-        COALESCE(AVG(req_cost), 0) as averageCost
+      SELECT req_ts, req_cost
       FROM token_history
-      WHERE user_id = ?;
+      WHERE user_id = ? AND req_ts BETWEEN ? AND ?
+      ORDER BY req_ts;
     `;
-    const result = await connection.get(query, [userId]);
-    return {
-      totalRequests: result.totalRequests,
-      totalCost: result.totalCost,
-      averageCost: result.averageCost,
-    };
+    const startTimestamp = Math.floor(startDate.getTime() / 1000);
+    const endTimestamp = Math.floor(endDate.getTime() / 1000);
+    const results = await connection.all(query, [userId, startTimestamp, endTimestamp]);
+    return results;
   } catch (error) {
     console.error('Error getting user statistics:', error);
-    return {
-      totalRequests: 0,
-      totalCost: 0,
-      averageCost: 0,
-    };
+    return [];
   } finally {
     await connection.close();
   }

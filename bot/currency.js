@@ -1,6 +1,6 @@
 import { EXCHANGE_RATES_API_URL, EXCHANGE_REQUEST_TIMEOUT } from '../const.js';
 import { dbGetLastRequestTime, dbUpdateLastRequestTime } from '../db/currency_timeout.js';
-import { dbGetLatestRate, dbInsertNewRate, dbGetRateForDate } from '../db/currency_rates.js';
+import { dbGetLatestRate, dbInsertOrUpdateRate, dbGetRateForDate } from '../db/currency_rates.js';
 
 export async function getCurrentRate() {
   const currentTime = Date.now();
@@ -24,7 +24,7 @@ export async function getCurrentRate() {
     const newRate = data.conversion_rates.RUB;
 
     await dbUpdateLastRequestTime(currentTime);
-    await dbInsertNewRate(newRate);
+    await dbInsertOrUpdateRate(newRate);
 
     return newRate;
   } catch (error) {
