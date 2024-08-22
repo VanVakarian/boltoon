@@ -17,7 +17,7 @@ export async function handleStatistics(ctx) {
   const currentRate = await getCurrentRate();
   const processedStats = processStatistics(statistics, startDate, endDate, user.tz_offset);
   const message = formatStatisticsMessage(processedStats, currentRate, user.tz_offset);
-  await ctx.reply(message, { parse_mode: 'HTML' });
+  await ctx.replyWithMarkdown(message);
 }
 
 function processStatistics(statistics, startDate, endDate, tzOffset) {
@@ -40,17 +40,19 @@ function processStatistics(statistics, startDate, endDate, tzOffset) {
 }
 
 function formatStatisticsMessage(statistics, rate, tzOffset) {
-  let message = '<b>Ваша статистика за последние 7 дней:</b>\n\n';
   const daysOfWeek = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
   const months = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+  let message = '*Ваша статистика за последние 7 дней:*\n\n';
   statistics.forEach((day) => {
     const date = new Date(day.date);
     date.setHours(date.getHours() + tzOffset);
     const dayOfWeek = daysOfWeek[date.getDay()];
-    const dayOfMonth = date.getDate();
+    const dayOfMonth = date.getDate().toString().padStart(2, '0');
     const month = months[date.getMonth()];
     const costRUB = (day.totalCost * rate).toFixed(2);
-    message += `${dayOfWeek}, ${dayOfMonth} ${month}, запросов: ${day.totalRequests}, стоимость: ${costRUB} ₽\n`;
+    message += `📆 \`${dayOfWeek}, ${dayOfMonth} ${month}\`        `;
+    message += `💬 \`${day.totalRequests.toString().padStart(2, ' ')}\`        `;
+    message += `💸 \`${costRUB.padStart(5, ' ')} ₽\`\n`;
   });
   return message;
 }

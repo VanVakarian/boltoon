@@ -3,22 +3,22 @@ import { EXCHANGE_RATE_API_KEY } from './env.js';
 export const MODELS = {
   'ChatGPT-4o': {
     modelName: 'gpt-4o-2024-08-06',
-    buttonText: '💡 ChatGPT-4o: мощная и дорогая',
+    buttonText: 'ChatGPT 4o 🧠',
     prices: { input: 2.5, output: 10 },
   },
   'ChatGPT-4o-mini': {
     modelName: 'gpt-4o-mini-2024-07-18',
-    buttonText: '⚡️ ChatGPT-4o-mini: простая',
+    buttonText: 'ChatGPT 4o mini 🚀',
     prices: { input: 0.15, output: 0.6 },
   },
   'Claude-3.5-sonnet': {
     modelName: 'claude-3-5-sonnet-20240620',
-    buttonText: '🧠 Claude-3.5-sonnet: мощная и дорогая',
+    buttonText: 'Claude 3.5 Sonnet 🧠',
     prices: { input: 3, output: 15 },
   },
   'Claude-3-haiku': {
     modelName: 'claude-3-haiku-20240307',
-    buttonText: '🚀 Claude-3-haiku: простая',
+    buttonText: 'Claude 3 Haiku 🚀',
     prices: { input: 0.25, output: 1.25 },
   },
 };
