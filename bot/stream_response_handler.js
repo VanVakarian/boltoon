@@ -76,11 +76,18 @@ async function updateTelegramMessage(ctx, originalMessage, newContent, lastUpdat
 
   try {
     if (newContent.length > 4096) {
-      newContent = newContent.slice(0, 4093) + '...';
+      newContent = newContent.slice(0, 4093) + '...'; // TODO: suboptimal hack, need to think of a better solution...
     }
     await ctx.telegram.editMessageText(originalMessage.chat.id, originalMessage.message_id, null, newContent);
   } catch (error) {
-    if (error.description !== 'Bad Request: message is not modified') {
+    if (
+      error.description ===
+      'Bad Request: message is not modified: specified new message content and reply markup are exactly the same as a current content and reply markup of the message'
+    ) {
+      console.warn('Message content unchanged, skipping update');
+    } else if (error.description && error.description.startsWith('Bad Request: message to edit not found')) {
+      console.error('Message to edit not found, possibly deleted');
+    } else {
       console.error('Error updating message:', error);
     }
   }

@@ -7,14 +7,19 @@ import { handleStreamResponse } from './stream_response_handler.js';
 export async function handleTextMessage(ctx) {
   const tgId = ctx.message.from.id;
   const userMessage = ctx.message.text;
-  const user = await dbGetUser(tgId);
-  let selectedModelKey = user?.selected_model_key;
-
-  if (!selectedModelKey || !MODELS[selectedModelKey]) selectedModelKey = DEFAULT_MODEL_KEY;
-
-  if (!user.is_activated) return;
+  let user, selectedModelKey;
 
   try {
+    user = await dbGetUser(tgId);
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    selectedModelKey = user.selected_model_key;
+    if (!selectedModelKey || !MODELS[selectedModelKey]) {
+      selectedModelKey = DEFAULT_MODEL_KEY;
+    }
+
     await ctx.sendChatAction('typing');
     const quote = ctx.message.reply_to_message?.text;
     const fullMessage = quote ? `${quote}\n\n${userMessage}` : userMessage;
@@ -25,18 +30,26 @@ export async function handleTextMessage(ctx) {
     const requestTs = ctx.message.date;
     const totalCost = calculateCost(usage, model);
     await dbStoreCost(user.id, requestTs, totalCost);
-
-    // Финальное обновление теперь происходит в handleStreamResponse
   } catch (error) {
-    console.error('Error:', error);
-    await ctx.reply(`Произошла ошибка:\n${error}.\nОтчёт уже отправлен Владу.`);
+    console.error('Error in handleTextMessage:', error);
+    let errorMessage = 'Произошла ошибка при обработке вашего сообщения.';
+
+    if (error.message === 'User not found') {
+      errorMessage = 'Ваш пользовательский профиль не найден. Пожалуйста, свяжитесь с администратором.';
+    } else if (error.code === 'ETIMEDOUT' || error.code === 'ECONNREFUSED') {
+      errorMessage = 'Не удалось установить соединение с сервером. Пожалуйста, попробуйте позже.';
+    } else if (error.response && error.response.status === 429) {
+      errorMessage = 'Превышен лимит запросов. Пожалуйста, попробуйте позже.';
+    }
+
+    await ctx.reply(errorMessage);
     await sendErrorToAdmin(ctx, error);
   }
 }
 
 function calculateCost(usage, model) {
   if (!usage) {
-    console.error('Usage information is missing');
+    console.warn('Usage information is missing');
     return 0;
   }
   const inputCost = (usage.prompt_tokens * model.prices.input) / 1000000;
@@ -46,7 +59,9 @@ function calculateCost(usage, model) {
 
 async function sendErrorToAdmin(ctx, error) {
   const adminUsers = await dbGetAdminUsers();
-  const errorMessage = `❗️Ошибка в боте:\n\n<pre><code>${escapeHTML(String(error.stack))}</code></pre>`;
+  const errorMessage = `❗️Ошибка в боте:\n\nПользователь: ${ctx.from.id}\nСообщение: ${
+    ctx.message.text
+  }\n\n<pre><code>${escapeHTML(String(error.stack))}</code></pre>`;
 
   for (const admin of adminUsers) {
     try {
