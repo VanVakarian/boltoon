@@ -2,7 +2,7 @@ import { Telegraf } from 'telegraf';
 import { message } from 'telegraf/filters';
 import { TG_BOT_TOKEN } from './env.js';
 import { dbInit } from './db/init.js';
-import { handleTextMessage } from './bot/messageHandler.js';
+import { handleTextMessage } from './bot/message_handler.js';
 import {
   handleStart,
   handleChooseModel,

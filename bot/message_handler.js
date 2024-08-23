@@ -2,8 +2,7 @@ import { MODELS, DEFAULT_MODEL_KEY } from '../const.js';
 import { escapeHTML } from '../utils.js';
 import { dbGetUser, dbGetAdminUsers } from '../db/users.js';
 import { dbStoreCost } from '../db/token_history.js';
-import { getChatGPTResponse } from '../gpt/chatgpt.js';
-import { getClaudeResponse } from '../gpt/claude.js';
+import { handleStreamResponse } from './stream_response_handler.js';
 
 export async function handleTextMessage(ctx) {
   const tgId = ctx.message.from.id;
@@ -21,45 +20,37 @@ export async function handleTextMessage(ctx) {
     const fullMessage = quote ? `${quote}\n\n${userMessage}` : userMessage;
 
     const model = MODELS[selectedModelKey];
-    const { answer, totalCost } = await generateResponse(model, fullMessage);
+    const usage = await handleStreamResponse(ctx, model.modelName, fullMessage);
 
     const requestTs = ctx.message.date;
+    const totalCost = calculateCost(usage, model);
     await dbStoreCost(user.id, requestTs, totalCost);
 
-    await ctx.reply(answer);
+    // Финальное обновление теперь происходит в handleStreamResponse
   } catch (error) {
     console.error('Error:', error);
     await ctx.reply(`Произошла ошибка:\n${error}.\nОтчёт уже отправлен Владу.`);
-    await sendErrorToAdmin(error);
+    await sendErrorToAdmin(ctx, error);
   }
 }
 
-async function generateResponse(model, fullMessage) {
-  let response;
-  if (model.modelName.startsWith('gpt')) {
-    response = await getChatGPTResponse(model.modelName, fullMessage);
-  } else if (model.modelName.startsWith('claude')) {
-    response = await getClaudeResponse(model.modelName, fullMessage);
-  } else {
-    throw new Error('Unsupported model');
+function calculateCost(usage, model) {
+  if (!usage) {
+    console.error('Usage information is missing');
+    return 0;
   }
-
-  const { answer, inputTokens, outputTokens } = response;
-
-  const inputCost = (inputTokens * model.prices.input) / 1000000;
-  const outputCost = (outputTokens * model.prices.output) / 1000000;
-  const totalCost = inputCost + outputCost;
-
-  return { answer, totalCost };
+  const inputCost = (usage.prompt_tokens * model.prices.input) / 1000000;
+  const outputCost = (usage.completion_tokens * model.prices.output) / 1000000;
+  return inputCost + outputCost;
 }
 
-async function sendErrorToAdmin(error) {
+async function sendErrorToAdmin(ctx, error) {
   const adminUsers = await dbGetAdminUsers();
   const errorMessage = `❗️Ошибка в боте:\n\n<pre><code>${escapeHTML(String(error.stack))}</code></pre>`;
 
   for (const admin of adminUsers) {
     try {
-      await bot.telegram.sendMessage(admin.tg_id, errorMessage, { parse_mode: 'HTML' });
+      await ctx.telegram.sendMessage(admin.tg_id, errorMessage, { parse_mode: 'HTML' });
     } catch (sendError) {
       console.error(`Не удалось отправить сообщение об ошибке админу ${admin.tg_id}:`, sendError);
     }
