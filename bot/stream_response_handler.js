@@ -71,24 +71,50 @@ export async function handleStreamResponse(ctx, model, message) {
 
 async function updateTelegramMessage(ctx, originalMessage, newContent, lastUpdateLength) {
   if (newContent.length === 0 || newContent.length <= lastUpdateLength) {
-    return;
+    return originalMessage;
   }
 
+  const maxMessageLength = 4000; // 4096 actually, but leaving some wiggle room
+  let currentMessage = originalMessage;
+
   try {
-    if (newContent.length > 4096) {
-      newContent = newContent.slice(0, 4093) + '...'; // TODO: suboptimal hack, need to think of a better solution...
-    }
-    await ctx.telegram.editMessageText(originalMessage.chat.id, originalMessage.message_id, null, newContent);
-  } catch (error) {
-    if (
-      error.description ===
-      'Bad Request: message is not modified: specified new message content and reply markup are exactly the same as a current content and reply markup of the message'
-    ) {
-      console.warn('Message content unchanged, skipping update');
-    } else if (error.description && error.description.startsWith('Bad Request: message to edit not found')) {
-      console.error('Message to edit not found, possibly deleted');
+    if (newContent.length <= maxMessageLength) {
+      await ctx.telegram.editMessageText(currentMessage.chat.id, currentMessage.message_id, null, newContent);
     } else {
-      console.error('Error updating message:', error);
+      const firstPart = newContent.slice(0, maxMessageLength - 3) + '...';
+      await ctx.telegram.editMessageText(currentMessage.chat.id, currentMessage.message_id, null, firstPart);
+
+      let remainingContent = '...' + newContent.slice(maxMessageLength - 3);
+      while (remainingContent.length > 0) {
+        currentMessage = await sendNewMessage(ctx, currentMessage.chat.id, remainingContent.slice(0, maxMessageLength));
+        remainingContent = remainingContent.slice(maxMessageLength);
+      }
     }
+  } catch (error) {
+    handleTelegramError(error);
+  }
+
+  return currentMessage;
+}
+
+async function sendNewMessage(ctx, chatId, content) {
+  try {
+    return await ctx.telegram.sendMessage(chatId, content);
+  } catch (error) {
+    console.error('Error sending new message:', error);
+    throw error;
+  }
+}
+
+function handleTelegramError(error) {
+  if (
+    error.description ===
+    'Bad Request: message is not modified: specified new message content and reply markup are exactly the same as a current content and reply markup of the message'
+  ) {
+    console.warn('Message content unchanged, skipping update');
+  } else if (error.description && error.description.startsWith('Bad Request: message to edit not found')) {
+    console.error('Message to edit not found, possibly deleted');
+  } else {
+    console.error('Error updating message:', error);
   }
 }
