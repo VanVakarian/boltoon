@@ -5,7 +5,7 @@ import { getCurrentRate } from './currency.js';
 export async function handleStatistics(ctx) {
   const user = await dbGetUser(ctx.from.id);
 
-  if (!user || !user.is_activated) {
+  if (!user) {
     return ctx.reply('Вы не авторизованы для просмотра статистики.');
   }
 
