@@ -36,24 +36,6 @@ export async function dbUpdateUserModel(tgId, selectedModelKey) {
   }
 }
 
-export async function dbUpdateUserTzOffset(tgId, tzOffset) {
-  const connection = await getConnection();
-  try {
-    const query = `
-      UPDATE users
-      SET tz_offset = ?
-      WHERE tg_id = ?;
-    `;
-    await connection.run(query, [tzOffset, tgId]);
-    return true;
-  } catch (error) {
-    console.error(error);
-    return false;
-  } finally {
-    await connection.close();
-  }
-}
-
 export async function dbGetAdminUsers() {
   const connection = await getConnection();
   try {

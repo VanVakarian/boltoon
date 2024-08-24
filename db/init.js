@@ -37,8 +37,8 @@ async function dbInsertInitialUsers(connection) {
 
   try {
     const insertQuery = `
-      INSERT OR IGNORE INTO users (tg_id, tg_username, tg_firstname, tg_lastname, selected_model_key, tz_offset, is_activated, is_admin)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+      INSERT OR IGNORE INTO users (tg_id, tg_username, tg_firstname, tg_lastname, selected_model_key, is_activated, is_admin)
+      VALUES (?, ?, ?, ?, ?, ?, ?);
     `;
 
     for (const user of INIT_USERS) {
@@ -48,7 +48,6 @@ async function dbInsertInitialUsers(connection) {
         user.tgFirstname ?? null,
         user.tgLastname ?? null,
         user.selectedModelKey,
-        user.tzOffset,
         user.isActivated ? 1 : 0,
         user.isAdmin ? 1 : 0,
       ]);
@@ -78,7 +77,6 @@ export async function dbInit() {
           tg_firstname TEXT,
           tg_lastname TEXT,
           selected_model_key TEXT,
-          tz_offset INTEGER,
           is_activated BOOLEAN,
           is_admin BOOLEAN
         );

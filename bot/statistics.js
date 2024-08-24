@@ -20,7 +20,7 @@ export async function handleStatistics(ctx) {
 
   const currentRate = await getCurrentRate();
   const processedStats = processStatistics(statistics, startDate, endDate);
-  const message = formatStatisticsMessage(processedStats, currentRate, user.tz_offset);
+  const message = formatStatisticsMessage(processedStats, currentRate);
   await ctx.replyWithMarkdown(message);
 }
 
@@ -50,16 +50,15 @@ function processStatistics(statistics, startDate, endDate) {
   return processedStats;
 }
 
-function formatStatisticsMessage(statistics, rate, tzOffset) {
+function formatStatisticsMessage(statistics, rate) {
   const daysOfWeek = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
   const months = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
   let message = '*Ваша статистика за последние 7 дней:*\n\n';
 
   statistics.forEach((day) => {
-    const localDate = new Date(day.date.getTime() + tzOffset * 60 * 60 * 1000);
-    const dayOfWeek = daysOfWeek[localDate.getUTCDay()];
-    const dayOfMonth = localDate.getUTCDate().toString().padStart(2, '0');
-    const month = months[localDate.getUTCMonth()];
+    const dayOfWeek = daysOfWeek[day.date.getUTCDay()];
+    const dayOfMonth = day.date.getUTCDate().toString().padStart(2, '0');
+    const month = months[day.date.getUTCMonth()];
     const costRUB = (day.totalCost * rate).toFixed(2);
     message += `📆 \`${dayOfWeek}, ${dayOfMonth} ${month}\`        `;
     message += `💬 \`${day.totalRequests.toString().padStart(2, ' ')}\`        `;
