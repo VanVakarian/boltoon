@@ -53,3 +53,20 @@ export async function dbGetAdminUsers() {
     await connection.close();
   }
 }
+
+export async function dbGetAllUsers() {
+  const connection = await getConnection();
+  try {
+    const query = `
+      SELECT *
+      FROM users;
+    `;
+    const result = await connection.all(query);
+    return result;
+  } catch (error) {
+    console.error(error);
+    return [];
+  } finally {
+    await connection.close();
+  }
+}

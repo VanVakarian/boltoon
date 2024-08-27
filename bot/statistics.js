@@ -1,4 +1,4 @@
-import { dbGetUser } from '../db/users.js';
+import { dbGetUser, dbGetAllUsers } from '../db/users.js';
 import { dbGetUserStatistics } from '../db/token_history.js';
 import { getCurrentRate } from './currency.js';
 
@@ -12,16 +12,55 @@ export async function handleStatistics(ctx) {
   const now = new Date();
   const endDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999));
   const startDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 6, 0, 0, 0, 0));
+  const currentRate = await getCurrentRate();
+
+  if (user.is_admin) {
+    await sendAdminStatistics(ctx, user, startDate, endDate, currentRate);
+  } else {
+    await sendUserStatistics(ctx, user, startDate, endDate, currentRate);
+  }
+}
+
+async function sendUserStatistics(ctx, user, startDate, endDate, currentRate) {
   const statistics = await dbGetUserStatistics(user.id, startDate, endDate);
 
   if (!statistics || statistics.length === 0) {
     return ctx.reply('Не удалось получить статистику. Пожалуйста, попробуйте позже.');
   }
 
-  const currentRate = await getCurrentRate();
   const processedStats = processStatistics(statistics, startDate, endDate);
   const message = formatStatisticsMessage(processedStats, currentRate);
   await ctx.replyWithMarkdown(message);
+}
+
+async function sendAdminStatistics(ctx, admin, startDate, endDate, currentRate) {
+  const allUsers = await dbGetAllUsers();
+  let fullMessage = '*Статистика всех пользователей за последние 7 дней:*\n\n';
+  const maxLength = 4000;
+
+  const adminStats = await dbGetUserStatistics(admin.id, startDate, endDate);
+  const processedAdminStats = processStatistics(adminStats, startDate, endDate);
+  fullMessage += formatStatisticsMessage(processedAdminStats, currentRate, admin) + '\n';
+
+  for (const user of allUsers) {
+    if (user.id !== admin.id) {
+      const statistics = await dbGetUserStatistics(user.id, startDate, endDate);
+      const processedStats = processStatistics(statistics, startDate, endDate);
+      const totalStats = calculateTotalStats(processedStats);
+      const userMessage = formatTotalStatisticsMessage(totalStats, currentRate, user);
+
+      if (fullMessage.length + userMessage.length > maxLength) {
+        await ctx.replyWithMarkdown(fullMessage);
+        fullMessage = '*Продолжение статистики:*\n\n' + userMessage;
+      } else {
+        fullMessage += userMessage;
+      }
+    }
+  }
+
+  if (fullMessage.length > 0) {
+    await ctx.replyWithMarkdown(fullMessage);
+  }
 }
 
 function processStatistics(statistics, startDate, endDate) {
@@ -50,10 +89,15 @@ function processStatistics(statistics, startDate, endDate) {
   return processedStats;
 }
 
-function formatStatisticsMessage(statistics, rate) {
+function formatStatisticsMessage(statistics, rate, user = null) {
   const daysOfWeek = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
   const months = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
-  let message = '*Ваша статистика за последние 7 дней:*\n\n';
+
+  let userInfo = user ? `*${formatUserInfo(user)}*\n` : '*Ваша статистика за последние 7 дней:*\n\n';
+  let message = userInfo;
+
+  let totalRequests = 0;
+  let totalCost = 0;
 
   statistics.forEach((day) => {
     const dayOfWeek = daysOfWeek[day.date.getUTCDay()];
@@ -63,7 +107,35 @@ function formatStatisticsMessage(statistics, rate) {
     message += `📆 \`${dayOfWeek}, ${dayOfMonth} ${month}\`        `;
     message += `💬 \`${day.totalRequests.toString().padStart(2, ' ')}\`        `;
     message += `💸 \`${costRUB.padStart(5, ' ')} ₽\`\n`;
+
+    totalRequests += day.totalRequests;
+    totalCost += day.totalCost;
   });
 
-  return message;
+  const totalCostRUB = (totalCost * rate).toFixed(2);
+  message += `\nИтого: 💬 ${totalRequests},  💸 ${totalCostRUB} ₽\n`;
+
+  return message + '\n';
+}
+
+function formatTotalStatisticsMessage(totalStats, rate, user) {
+  const userInfo = formatUserInfo(user);
+  const totalCostRUB = (totalStats.totalCost * rate).toFixed(2);
+  return `*${userInfo}*:\n💬 ${totalStats.totalRequests},  💸 ${totalCostRUB} ₽\n\n`;
+}
+
+function formatUserInfo(user) {
+  let userInfo = user.tg_firstname;
+  if (user.tg_lastname) userInfo += ` ${user.tg_lastname}`;
+  if (user.tg_username) userInfo += ` (@${user.tg_username})`;
+  return userInfo;
+}
+
+function calculateTotalStats(processedStats) {
+  const totals = { totalRequests: 0, totalCost: 0 };
+  processedStats.forEach((day) => {
+    totals.totalRequests += day.totalRequests;
+    totals.totalCost += day.totalCost;
+  });
+  return totals;
 }
