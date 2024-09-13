@@ -30,3 +30,5 @@ export const EXCHANGE_RATES_API_URL = `https://v6.exchangerate-api.com/v6/${EXCH
 export const EXCHANGE_REQUEST_TIMEOUT = 60 * 60 * 1000; // 1 hour
 
 export const EXCHANGE_API_ID = 1; // in case there will be more than one exchange api
+
+export const STRANGER_LOGS_FILENAME = 'strangers.log';

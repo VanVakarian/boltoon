@@ -1,5 +1,5 @@
 import { MODELS, DEFAULT_MODEL_KEY } from '../const.js';
-import { escapeHTML } from '../utils.js';
+import { escapeHTML, logMessageToFile } from '../utils.js';
 import { dbGetUser, dbGetAdminUsers } from '../db/users.js';
 import { dbStoreCost } from '../db/token_history.js';
 import { handleStreamResponse } from './stream_response_handler.js';
@@ -12,7 +12,8 @@ export async function handleTextMessage(ctx) {
   try {
     user = await dbGetUser(tgId);
     if (!user) {
-      throw new Error('User not found');
+      await logMessageToFile(ctx.message);
+      return;
     }
 
     selectedModelKey = user.selected_model_key;
