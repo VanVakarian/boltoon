@@ -37,6 +37,8 @@ export async function handleTextMessage(ctx) {
 
     if (error.message === 'User not found') {
       errorMessage = 'Ваш пользовательский профиль не найден. Пожалуйста, свяжитесь с администратором.';
+    } else if (error.message === 'Connection error' || error.message.includes('Connection error')) {
+      errorMessage = 'Проблема с подключением к серверу ИИ. Пожалуйста, подождите немного и повторите запрос.';
     } else if (error.code === 'ETIMEDOUT' || error.code === 'ECONNREFUSED') {
       errorMessage = 'Не удалось установить соединение с сервером. Пожалуйста, попробуйте позже.';
     } else if (error.response && error.response.status === 429) {
